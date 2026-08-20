@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WhitelistMute</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- CSCore 本身就是 .NET Framework 库，net48 下直接引用、由系统提供运行时 -->
+    <PackageReference Include="CSCore" Version="1.2.1.2" />
+    <PackageReference Include="ILRepack.FullAuto" Version="1.6.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- 编译 net48 所需的引用程序集 -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

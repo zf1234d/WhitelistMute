@@ -1,0 +1,21 @@
+# .NET 通用忽略
+bin/
+obj/
+*.user
+*.suo
+
+# 编辑器/IDE
+.vs/
+.idea/
+.vscode/
+
+# 构建/发布产物
+publish*/
+ilrepack-tools/
+*.pdb
+*.log
+%TEMP%
+
+# 运行时生成
+whitelist.conf
+_error.log
