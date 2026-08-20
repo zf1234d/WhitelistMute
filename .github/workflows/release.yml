@@ -1,0 +1,49 @@
+name: Release
+
+# 触发：推送 v* 标签（如 v0.1.0）或手动运行
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '7.0.x'
+
+      - name: 构建 Release（net48 · 单文件）
+        shell: pwsh
+        run: |
+          dotnet build -c Release -p:RestoreSources=https://api.nuget.org/v3/index.json
+          if (-not (Test-Path 'bin/Release/net48/WhitelistMute.exe')) {
+            throw '未找到构建产物 bin/Release/net48/WhitelistMute.exe'
+          }
+
+      - name: 打包发布文件
+        shell: pwsh
+        run: |
+          $dist = 'dist'
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item 'bin/Release/net48/WhitelistMute.exe' $dist
+          Copy-Item 'LICENSE' $dist
+          Copy-Item 'README.md' $dist
+          $tag = $env:GITHUB_REF_NAME
+          Compress-Archive -Path "$dist/*" -DestinationPath "WhitelistMute-$tag.zip"
+
+      - name: 创建 GitHub Release 并上传
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            WhitelistMute-*.zip
+          generate_release_notes: true
