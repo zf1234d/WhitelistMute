@@ -29,7 +29,7 @@
 
 ## 编译
 
-环境要求：.NET SDK 7（用于编译 .NET Framework 目标）。
+目标框架 `.NET Framework 4.8`，编译需 .NET SDK：
 
 ```bash
 cd WhitelistMute
