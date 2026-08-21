@@ -15,12 +15,12 @@ jobs:
 
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: 安装 .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '7.0.x'
+          dotnet-version: '10.0.x'
 
       - name: 构建 Release（net48 · 单文件）
         shell: pwsh
@@ -42,7 +42,7 @@ jobs:
           Compress-Archive -Path "$dist/*" -DestinationPath "WhitelistMute-$tag.zip"
 
       - name: 创建 GitHub Release 并上传
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             WhitelistMute-*.zip
