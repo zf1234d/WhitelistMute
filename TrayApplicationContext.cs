@@ -246,18 +246,30 @@ namespace WhitelistMute
             }
         }
 
-        /// <summary>「白名单」：展示所有勾选过的应用（白名单全集，含当前未播放的）；取消勾选=移出并恢复声音。</summary>
+        /// <summary>「白名单」：展示所有勾选过的应用（白名单全集，含当前未播放的）；正在运行的应用用鲜艳色高亮；取消勾选=移出并恢复声音。</summary>
         private void PopulateEffectMenu()
         {
             _effectMenu.DropDownItems.Clear();
 
             var whitelist = _engine.Whitelist;
+
+            // 当前活跃音频进程，用于高亮"正在运行"的白名单应用；失败时忽略高亮
+            IReadOnlyCollection<string> running = Array.Empty<string>();
+            try
+            {
+                running = _audio.GetActiveProcessNames();
+            }
+            catch
+            {
+            }
+
             foreach (string name in whitelist.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
             {
                 var item = new ToolStripMenuItem(name)
                 {
                     CheckOnClick = true,
                     Checked = true, // 在白名单即勾选
+                    ForeColor = running.Contains(name) ? Color.Green : Color.Empty,
                 };
                 var processName = name; // 捕获循环变量
                 item.Click += (_, _) =>
