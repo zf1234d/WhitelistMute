@@ -1,14 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
 namespace WhitelistMute
 {
     /// <summary>
-    /// 程序宿主：纯系统托盘，无任何主窗口。
-    /// 「后台列表」「生效列表」均以内联可勾选子菜单呈现，点开即刷新。
+    /// 程序宿主：纯系统托盘，无主窗口。
+    /// 「后台播放」「白名单」以内联可勾选子菜单呈现。
     /// </summary>
     public sealed class TrayApplicationContext : ApplicationContext
     {
@@ -20,6 +22,9 @@ namespace WhitelistMute
 
         private ToolStripMenuItem _bgMenu = null!;
         private ToolStripMenuItem _effectMenu = null!;
+
+        private IReadOnlyCollection<string>? _cachedRunning; // 正在播放应用缓存
+        private bool _refreshing;                             // 防止并发刷新
 
         public TrayApplicationContext()
         {
@@ -151,36 +156,73 @@ namespace WhitelistMute
         {
             _bgMenu.DropDownItems.Clear();
 
-            try
+            if (_cachedRunning != null)
             {
-                var running = _audio.GetActiveProcessNames();
-                var whitelist = _engine.Whitelist;
-
-                foreach (string name in running.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+                // 渲染缓存，并在后台刷新缓存
+                RenderBackgroundItems(_cachedRunning);
+                RefreshCacheAsync();
+            }
+            else
+            {
+                // 无缓存则同步枚举初始化
+                try
                 {
-                    var item = new ToolStripMenuItem(name)
-                    {
-                        CheckOnClick = true,
-                        Checked = whitelist.Contains(name),
-                    };
-                    item.Click += (_, _) => ToggleWhitelist(name, item);
-                    _bgMenu.DropDownItems.Add(item);
+                    _cachedRunning = _audio.GetActiveProcessNames();
+                    RenderBackgroundItems(_cachedRunning);
                 }
-
-                if (_bgMenu.DropDownItems.Count == 0)
+                catch (Exception ex)
                 {
-                    _bgMenu.DropDownItems.Add(new ToolStripMenuItem("（当前没有正在播放音频的应用）")
-                    {
-                        Enabled = false,
-                    });
+                    RenderBackgroundItems(Array.Empty<string>(), $"枚举出错: {ex.Message}");
                 }
             }
-            catch (Exception ex)
+        }
+
+        /// <summary>后台刷新正在播放应用缓存；仅更新字段，不改动已显示的子菜单项。</summary>
+        private void RefreshCacheAsync()
+        {
+            if (_refreshing)
             {
-                _bgMenu.DropDownItems.Add(new ToolStripMenuItem($"枚举出错: {ex.Message}")
+                return;
+            }
+            _refreshing = true;
+
+            Task.Run(() => _audio.GetActiveProcessNames())
+                .ContinueWith(t =>
+                {
+                    _refreshing = false;
+                    if (!t.IsFaulted && t.Result != null)
+                    {
+                        _cachedRunning = t.Result; // 仅更新缓存字段
+                    }
+                }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        private void RenderBackgroundItems(IEnumerable<string> running, string? error = null)
+        {
+            _bgMenu.DropDownItems.Clear();
+
+            var whitelist = _engine.Whitelist;
+            bool any = false;
+
+            foreach (string name in running.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+            {
+                var item = new ToolStripMenuItem(name)
+                {
+                    CheckOnClick = true,
+                    Checked = whitelist.Contains(name),
+                };
+                item.Click += (_, _) => ToggleWhitelist(name, item);
+                _bgMenu.DropDownItems.Add(item);
+                any = true;
+            }
+
+            if (!any)
+            {
+                var text = error ?? "（当前没有正在播放音频的应用）";
+                _bgMenu.DropDownItems.Add(new ToolStripMenuItem(text)
                 {
                     Enabled = false,
-                    ForeColor = Color.Red,
+                    ForeColor = error != null ? Color.Red : Color.Empty,
                 });
             }
         }
