@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -11,12 +12,29 @@ namespace WhitelistMute
     /// 直接读取系统"应用音量合成器"（WASAPI 音频会话）。
     /// 注意：CSCore 的 AudioSessionManager2 要求从 MTA 线程发起
     /// （RegisterSessionNotification must be called from an MTA-thread），
-    /// 而 WinForms 主线程是 STA，因此所有枚举一律在专用 MTA 线程内执行。
+    /// 而 WinForms 主线程是 STA，因此所有枚举一律在专用常驻 MTA 线程内执行。
     /// </summary>
     public sealed class AudioSessionService : IDisposable
     {
+        private readonly BlockingCollection<Action> _jobs = new();
+        private readonly Thread _mtaThread;
+        private bool _disposed;
+
         public AudioSessionService()
         {
+            _mtaThread = new Thread(() =>
+            {
+                foreach (var job in _jobs.GetConsumingEnumerable())
+                {
+                    job();
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "AudioSession-MTA",
+            };
+            _mtaThread.SetApartmentState(ApartmentState.MTA);
+            _mtaThread.Start();
         }
 
         /// <summary>遍历每个音频进程（去重）。回调 (pid, 进程名)。</summary>
@@ -230,12 +248,18 @@ namespace WhitelistMute
             }
         }
 
-        /// <summary>在专用 MTA 后台线程上执行 action（CSCore 合并操作要求），阻塞等待完成。</summary>
-        private static void RunInMta(Action action)
+        /// <summary>在常驻 MTA 线程上执行 action（阻塞等待完成；必须从 MTA 线程调用 CSCore 合并操作）。</summary>
+        private void RunInMta(Action action)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
+            using var done = new ManualResetEventSlim(false);
             Exception? error = null;
 
-            var thread = new Thread(() =>
+            _jobs.Add(() =>
             {
                 try
                 {
@@ -245,14 +269,13 @@ namespace WhitelistMute
                 {
                     error = ex;
                 }
-            })
-            {
-                IsBackground = true,
-                Name = "AudioSession-MTA",
-            };
-            thread.SetApartmentState(ApartmentState.MTA);
-            thread.Start();
-            thread.Join();
+                finally
+                {
+                    done.Set();
+                }
+            });
+
+            done.Wait();
 
             if (error != null)
             {
@@ -262,6 +285,12 @@ namespace WhitelistMute
 
         public void Dispose()
         {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
+            _jobs.CompleteAdding(); // 让 MTA 线程退出消费循环
         }
     }
 }
