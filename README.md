@@ -36,9 +36,6 @@ cd WhitelistMute
 dotnet build -c Release
 ```
 
-> 若默认 NuGet 源缺少包，可显式指定官方源：
-> `dotnet build -c Release -p:RestoreSources=https://api.nuget.org/v3/index.json`
-
 构建产物：`bin\Release\net48\WhitelistMute.exe`
 
 ## 目录结构
