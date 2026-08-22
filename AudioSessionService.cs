@@ -61,23 +61,6 @@ namespace WhitelistMute
             });
         }
 
-        /// <summary>将某个指定 PID 的所有会话设为 静音/不静音。</summary>
-        public void SetMuteByPid(int pid, bool mute)
-        {
-            if (pid <= 0)
-            {
-                return;
-            }
-
-            ForEachSession((_pid, _name, volume) =>
-            {
-                if (_pid == pid)
-                {
-                    volume.IsMuted = mute;
-                }
-            });
-        }
-
         /// <summary>当前所有活跃音频会话的进程名（去重）。</summary>
         public IReadOnlyCollection<string> GetActiveProcessNames()
         {
@@ -122,10 +105,7 @@ namespace WhitelistMute
             {
                 using (device)
                 {
-                    AudioSessionEnumerator? sessions = null;
-                    try { sessions = TryGetSessions(device, out _); }
-                    catch { }
-
+                    var sessions = TryGetSessions(device, out _);
                     if (sessions == null)
                     {
                         continue;
