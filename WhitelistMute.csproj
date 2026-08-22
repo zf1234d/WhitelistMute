@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- CSCore 本身就是 .NET Framework 库，net48 下直接引用、由系统提供运行时 -->
-    <PackageReference Include="CSCore" Version="1.2.1.2" />
+    <!-- NAudio.Wasapi 封装 Windows WASAPI/Core Audio API（枚举设备、会话、音量/静音）。netstandard2.0，可被 net48 引用 -->
+    <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />
     <PackageReference Include="ILRepack.FullAuto" Version="1.6.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -21,9 +21,9 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- 构建前清理 ILRepack 残留，避免把上次已合并的 exe/CSCore 重复合并导致体积膨胀 -->
+  <!-- 构建前清理 ILRepack 残留，避免把上次已合并的 exe/NAudio 依赖重复合并导致体积膨胀 -->
   <Target Name="CleanIlRepackStale" BeforeTargets="PrepareForBuild">
-    <Exec Command="del /q &quot;$(IntermediateOutputPath)$(AssemblyName).exe&quot; &quot;$(IntermediateOutputPath)$(AssemblyName).pdb&quot; &quot;$(OutDir)$(AssemblyName).exe&quot; &quot;$(OutDir)$(AssemblyName).pdb&quot; &quot;$(OutDir)CSCore.dll&quot; 2>nul" IgnoreExitCode="true" />
+    <Exec Command="del /q &quot;$(IntermediateOutputPath)$(AssemblyName).exe&quot; &quot;$(IntermediateOutputPath)$(AssemblyName).pdb&quot; &quot;$(OutDir)$(AssemblyName).exe&quot; &quot;$(OutDir)$(AssemblyName).pdb&quot; &quot;$(OutDir)NAudio.Core.dll&quot; &quot;$(OutDir)NAudio.Wasapi.dll&quot; 2>nul" IgnoreExitCode="true" />
   </Target>
 
 </Project>

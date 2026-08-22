@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using CSCore.CoreAudioAPI;
+using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi.Interfaces;
 
 namespace WhitelistMute
 {
     /// <summary>
     /// 直接读取系统"应用音量合成器"（WASAPI 音频会话）。
-    /// 注意：CSCore 的 AudioSessionManager2 要求从 MTA 线程发起
-    /// （RegisterSessionNotification must be called from an MTA-thread），
+    /// NAudio 的 AudioSessionManager/SessionCollection 需要从 MTA 线程访问，
     /// 而 WinForms 主线程是 STA，因此所有枚举一律在专用常驻 MTA 线程内执行。
     /// </summary>
     public sealed class AudioSessionService : IDisposable
@@ -54,10 +54,7 @@ namespace WhitelistMute
         {
             RunInMta(() =>
             {
-                ForEachDeviceSession((pid, name, volume) =>
-                {
-                    onSession(pid, name, volume);
-                });
+                ForEachDeviceSession(onSession);
             });
         }
 
@@ -81,22 +78,7 @@ namespace WhitelistMute
         {
             // 急切物化：枚举器在此方法内释放，但返回的 MMDeviceCollection 已对设备持有引用
             using var enumerator = new MMDeviceEnumerator();
-            return enumerator.EnumAudioEndpoints(DataFlow.Render, DeviceState.Active).ToList();
-        }
-
-        private static AudioSessionEnumerator? TryGetSessions(MMDevice device, out string error)
-        {
-            error = string.Empty;
-            try
-            {
-                using var manager = AudioSessionManager2.FromMMDevice(device);
-                return manager.GetSessionEnumerator();
-            }
-            catch (Exception ex)
-            {
-                error = $"{ex.GetType().Name}: {ex.Message}";
-                return null;
-            }
+            return enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).ToList();
         }
 
         private static void ForEachDeviceSession(Action<int, string, SimpleAudioVolume> onSession)
@@ -105,26 +87,42 @@ namespace WhitelistMute
             {
                 using (device)
                 {
-                    var sessions = TryGetSessions(device, out _);
-                    if (sessions == null)
+                    AudioSessionManager manager;
+                    try
+                    {
+                        manager = device.AudioSessionManager;
+                    }
+                    catch
                     {
                         continue;
                     }
 
-                    using (sessions)
+                    try
                     {
-                        foreach (var session in sessions)
+                        SessionCollection sessions;
+                        try
                         {
-                            if (session == null ||
-                                session.SessionState != AudioSessionState.AudioSessionStateActive ||
-                                !TryGetSessionInfo(session, out int pid, out string name))
-                            {
-                                continue;
-                            }
+                            sessions = manager.Sessions;
+                        }
+                        catch
+                        {
+                            continue;
+                        }
 
+                        for (int i = 0; i < sessions.Count; i++)
+                        {
                             try
                             {
-                                using var volume = GetVolume(session);
+                                using var session = sessions[i];
+                                if (session == null ||
+                                    session.State != AudioSessionState.AudioSessionStateActive ||
+                                    session.IsSystemSoundsSession ||
+                                    !TryGetSessionInfo(session, out int pid, out string name))
+                                {
+                                    continue;
+                                }
+
+                                using var volume = session.SimpleAudioVolume;
                                 if (volume == null)
                                 {
                                     continue;
@@ -138,80 +136,39 @@ namespace WhitelistMute
                             }
                         }
                     }
+                    finally
+                    {
+                        manager.Dispose();
+                    }
                 }
             }
         }
 
-        private static SimpleAudioVolume? GetVolume(AudioSessionControl session)
-        {
-            try
-            {
-                return session.QueryInterface<SimpleAudioVolume>();
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// 从会话中稳定取出 (pid, 进程名)。兼容 CSCore 枚举元素为 AudioSessionControl2
-        /// 或泛型 AudioSessionControl 两种情况（先强转、失败再 QueryInterface）。
-        /// </summary>
         private static bool TryGetSessionInfo(AudioSessionControl session, out int pid, out string name)
         {
             pid = 0;
             name = string.Empty;
 
-            AudioSessionControl2? c2 = session as AudioSessionControl2;
-            bool needDispose = false;
-
             try
             {
-                if (c2 == null)
-                {
-                    try
-                    {
-                        c2 = session.QueryInterface<AudioSessionControl2>();
-                        needDispose = true;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-
-                if (c2.IsSystemSoundSession)
-                {
-                    return false;
-                }
-
-                int p = c2.ProcessID;
+                uint p = session.GetProcessID;
                 if (p <= 0)
                 {
                     return false;
                 }
 
-                string n = c2.Process?.ProcessName ?? SafeProcessName((uint)p);
-                if (string.IsNullOrWhiteSpace(n))
+                name = SafeProcessName(p);
+                if (string.IsNullOrWhiteSpace(name))
                 {
                     return false;
                 }
 
-                pid = p;
-                name = n;
+                pid = (int)p;
                 return true;
             }
             catch
             {
                 return false;
-            }
-            finally
-            {
-                if (needDispose)
-                {
-                    c2?.Dispose();
-                }
             }
         }
 
@@ -228,7 +185,7 @@ namespace WhitelistMute
             }
         }
 
-        /// <summary>在常驻 MTA 线程上执行 action（阻塞等待完成；必须从 MTA 线程调用 CSCore 合并操作）。</summary>
+        /// <summary>在常驻 MTA 线程上执行 action（阻塞等待完成；会话访问必须在 MTA 线程）。</summary>
         private void RunInMta(Action action)
         {
             if (_disposed)

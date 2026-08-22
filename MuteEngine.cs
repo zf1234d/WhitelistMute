@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CSCore.CoreAudioAPI;
 
 namespace WhitelistMute
 {
@@ -42,7 +41,7 @@ namespace WhitelistMute
             {
                 if (string.Equals(name, processName, StringComparison.OrdinalIgnoreCase))
                 {
-                    volume.IsMuted = false;
+                    volume.Mute = false;
                 }
             });
         }
@@ -60,7 +59,7 @@ namespace WhitelistMute
             {
                 if (list.Contains(name))
                 {
-                    volume.IsMuted = false;
+                    volume.Mute = false;
                 }
             });
         }
@@ -87,7 +86,7 @@ namespace WhitelistMute
                 }
 
                 bool shouldMute = !string.Equals(name, foreground, StringComparison.OrdinalIgnoreCase);
-                volume.IsMuted = shouldMute;
+                volume.Mute = shouldMute;
             });
         }
     }
