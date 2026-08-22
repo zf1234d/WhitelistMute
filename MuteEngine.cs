@@ -13,7 +13,7 @@ namespace WhitelistMute
     public sealed class MuteEngine
     {
         private readonly AudioSessionService _audio;
-        private HashSet<string> _whitelist;
+        private volatile HashSet<string> _whitelist; // 引用字段跨线程读写，volatile 保证可见性
 
         public MuteEngine(AudioSessionService audio, IEnumerable<string> initialWhitelist)
         {
@@ -50,14 +50,15 @@ namespace WhitelistMute
         /// <summary>把所有白名单内应用全部取消静音（用于程序退出时释放声音）。</summary>
         public void UnmuteAll()
         {
-            if (_whitelist.Count == 0)
+            var list = _whitelist; // 取一份本地快照，回调中统一使用
+            if (list.Count == 0)
             {
                 return;
             }
 
             _audio.ForEachSession((_pid, name, volume) =>
             {
-                if (_whitelist.Contains(name))
+                if (list.Contains(name))
                 {
                     volume.IsMuted = false;
                 }
@@ -70,7 +71,8 @@ namespace WhitelistMute
         /// </summary>
         public void Apply()
         {
-            if (_whitelist.Count == 0)
+            var list = _whitelist; // 取一份本地快照，回调中统一使用
+            if (list.Count == 0)
             {
                 return;
             }
@@ -79,7 +81,7 @@ namespace WhitelistMute
 
             _audio.ForEachSession((_pid, name, volume) =>
             {
-                if (string.IsNullOrWhiteSpace(name) || !_whitelist.Contains(name))
+                if (string.IsNullOrWhiteSpace(name) || !list.Contains(name))
                 {
                     return; // 非白名单，不触碰
                 }
