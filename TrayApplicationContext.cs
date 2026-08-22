@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -316,8 +317,18 @@ namespace WhitelistMute
                     new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
             }
             var hIcon = bmp.GetHicon();
-            return (Icon)Icon.FromHandle(hIcon).Clone();
+            try
+            {
+                return (Icon)Icon.FromHandle(hIcon).Clone();
+            }
+            finally
+            {
+                DestroyIcon(hIcon); // 释放原生图标句柄
+            }
         }
+
+        [DllImport("user32.dll")]
+        private static extern bool DestroyIcon(IntPtr hIcon);
 
         private void Shutdown()
         {
