@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <!-- NAudio.Wasapi 封装 Windows WASAPI/Core Audio API（枚举设备、会话、音量/静音）。netstandard2.0，可被 net48 引用 -->
-    <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.4.0" />
     <PackageReference Include="ILRepack.FullAuto" Version="1.6.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
