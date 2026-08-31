@@ -1,5 +1,12 @@
 # WhitelistMute · 白名单静音
 
+![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=for-the-badge)
+![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8-512BD4?style=for-the-badge)
+
+[![GitHub Release](https://img.shields.io/github/v/release/zf1234d/WhitelistMute?label=Release)](https://github.com/zf1234d/WhitelistMute/releases/latest)
+[![GitHub Last Commit](https://img.shields.io/github/last-commit/zf1234d/WhitelistMute)](https://github.com/zf1234d/WhitelistMute/commits/main)
+[![License](https://img.shields.io/badge/License-WTFPL-a652bb)](LICENSE)
+
 一个 **Windows 10/11** 上的**托盘静音小工具**：只对「白名单」内的应用生效——**切到后台自动静音，切回前台自动恢复声音**，白名单外的应用完全不受影响。纯系统托盘，无可视化主窗口。
 
 ## 特性
